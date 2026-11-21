@@ -11,8 +11,10 @@ from the text itself, showing rather than instructing, (3) craft: rhythm,
 pacing and sound that slow the reading down, plain concrete gentle words,
 (4) it dwarfs the reader with an image that keeps growing after the last
 line, (5) freshness: its own voice and images, no stock wellness phrases.
-A fresh random seed (os.urandom + time) picks one text per run, so every
-run can produce a different text and every possible output is strong.
+A fixed seed picks the same text on every run, so the program is
+fully deterministic: same input, same output, every time. The
+MAKEFUN_SEED environment variable still overrides the seed as a
+test hook.
 
 Gate: /output/entry.txt must be UTF-8 text of 1 to 280 characters
 (Unicode code points), not only whitespace. Every candidate is kept
@@ -23,11 +25,9 @@ valid candidate instead of writing an invalid file.
 Stdlib only. No network. Runs in well under a second.
 """
 
-import hashlib
 import os
 import random
 import sys
-import time
 
 # ---------------------------------------------------------------------------
 # Candidate texts. Each is a complete, self-contained entry.
@@ -95,11 +95,9 @@ TEXTS = [
 MIN_CHARS = 1
 MAX_CHARS = 280
 
-
-def fresh_seed() -> int:
-    """A fresh seed every run: OS entropy mixed with wall-clock time."""
-    entropy = os.urandom(16) + str(time.time_ns()).encode("ascii")
-    return int.from_bytes(hashlib.sha256(entropy).digest()[:8], "big")
+# Fixed default seed: the run is fully deterministic with no env vars
+# set. MAKEFUN_SEED overrides it (test hook only).
+DEFAULT_SEED = 20261121
 
 
 def choose_text(rng: random.Random) -> str:
@@ -123,13 +121,14 @@ def main() -> int:
     # Optional override for local testing only; the grader uses /output.
     output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
 
-    # MAKEFUN_SEED is a test hook only: when set, the run is
-    # reproducible. Unset, every run draws a fresh seed.
+    # MAKEFUN_SEED is a test hook only: when set, it overrides the
+    # fixed default seed. Unset, every run uses DEFAULT_SEED and is
+    # fully deterministic.
     seed_env = os.environ.get("MAKEFUN_SEED")
     if seed_env is not None:
         seed = int(seed_env)
     else:
-        seed = fresh_seed()
+        seed = DEFAULT_SEED
 
     rng = random.Random(seed)
     text = choose_text(rng)
